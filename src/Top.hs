@@ -26,9 +26,6 @@ type Microseconds (us :: Nat) = Nanoseconds  (1_000 * us)
 type Nanoseconds  (ns :: Nat) = Picoseconds  (1_000 * ns)
 type Picoseconds  (ps :: Nat) = ps
 
-splitInstr :: Instr -> (BitVector 8, BitVector 8)
-splitInstr = bitCoerce
-
 counter
   :: forall n dom
    . HiddenClockResetEnable dom
