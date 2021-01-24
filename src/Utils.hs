@@ -17,5 +17,9 @@ shiftBitR bs b =
   let (bs', _) = bitCoerce $ pack b ++# bs :: (BitVector n, Bit)
   in bs'
 
-stickify :: HiddenClockResetEnable dom => NFDataX a => Signal dom (Maybe a) -> Signal dom (Maybe a)
+stickify
+  :: HiddenClockResetEnable dom
+  => NFDataX a
+  => Signal dom (Maybe a)
+  -> Signal dom (Maybe a)
 stickify xm = let ym = liftA2 (<|>) xm (register Nothing ym) in ym
