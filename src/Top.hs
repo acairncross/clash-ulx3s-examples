@@ -7,7 +7,7 @@
 module Top where
 
 import Clash.Prelude
-import Clash.Annotations.TH (makeTopEntity)
+import Clash.Annotations.TH (makeTopEntityWithName)
 import Data.Function ((&))
 
 import RAM
@@ -52,7 +52,7 @@ topRam clk input =
     & ram
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
-makeTopEntity 'topRam
+makeTopEntityWithName 'topRam "ram"
 
 topCounter
   :: "clk_25mhz" ::: Clock Dom25
@@ -61,14 +61,14 @@ topCounter clk =
   withClockResetEnable clk resetGen enableGen $
     fmap (truncateB . (`shiftR` 22)) (counter @32)
 
-makeTopEntity 'topCounter
+makeTopEntityWithName 'topCounter "counter"
 
-topEntity
+topStackMachine
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit
   -- -> "led" ::: Signal Dom25 (BitVector 8)
   -> "ftdi_rxd" ::: Signal Dom25 Bit
-topEntity clk input =
+topStackMachine clk input =
   withClockResetEnable clk resetGen enableGen $
     input
     & override 8 high
@@ -77,4 +77,4 @@ topEntity clk input =
     & processor
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
-makeTopEntity 'topEntity
+makeTopEntityWithName 'topStackMachine "stackMachine"

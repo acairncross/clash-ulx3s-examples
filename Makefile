@@ -1,6 +1,6 @@
 BUILDDIR ?= build
 
-TOPMODS := topEntity topCounter topRam
+TOPMODS := stackMachine counter ram
 SYNTHCFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.json))
 ROUTECFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=_out.config))
 BITSTREAMS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.bit))
