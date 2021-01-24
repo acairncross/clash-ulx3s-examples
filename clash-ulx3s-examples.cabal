@@ -1,0 +1,121 @@
+cabal-version: 2.2
+name:          clash-ulx3s-examples
+version:       0.0.0.0
+license:       MIT
+license-files: LICENSE
+copyright:     Copyright (c) 2021, Aiken Cairncross
+maintainer:    acairncross@gmail.com
+author:        Aiken Cairncross
+synopsis:      Clash ULX3S examples
+
+category:      Hardware
+
+common common-options
+  default-extensions:
+    BangPatterns
+    BinaryLiterals
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveAnyClass
+    DeriveDataTypeable
+    DeriveFoldable
+    DeriveFunctor
+    DeriveGeneric
+    DeriveLift
+    DeriveTraversable
+    DerivingStrategies
+    InstanceSigs
+    KindSignatures
+    LambdaCase
+    NoStarIsType
+    PolyKinds
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    ViewPatterns
+
+    -- TemplateHaskell is used to support convenience functions such as
+    -- 'listToVecTH' and 'bLit'.
+    TemplateHaskell
+    QuasiQuotes
+
+    -- Prelude isn't imported by default as Clash offers Clash.Prelude
+    NoImplicitPrelude
+  ghc-options:
+    -Wall -Wcompat
+    -haddock
+
+    -- Plugins to support type-level constraint solving on naturals
+    -fplugin GHC.TypeLits.Extra.Solver
+    -fplugin GHC.TypeLits.Normalise
+    -fplugin GHC.TypeLits.KnownNat.Solver
+
+    -- Clash needs access to the source code in compiled modules
+    -fexpose-all-unfoldings
+
+    -- Worker wrappers introduce unstable names for functions that might have
+    -- blackboxes attached for them. You can disable this, but be sure to add
+    -- a no-specialize pragma to every function with a blackbox.
+    -fno-worker-wrapper
+  build-depends:
+    base,
+
+    -- clash-prelude will set suitable version bounds for the plugins
+    clash-prelude >= 1.2.5 && < 1.4,
+    ghc-typelits-natnormalise,
+    ghc-typelits-extra,
+    ghc-typelits-knownnat
+
+library
+  import:           common-options
+  exposed-modules:  RAM
+                    StackMachine
+                    Top
+                    UART
+                    Utils
+  hs-source-dirs:   src
+  default-language: Haskell2010
+
+  build-depends:
+    mtl,
+    reducers,
+    text,
+
+executable clash
+  main-is:          bin/Clash.hs
+  default-language: Haskell2010
+  build-depends:
+    base <5,
+    clash-ghc,
+    clash-ulx3s-examples,
+
+  if !os(windows)
+    ghc-options: -dynamic
+
+executable stack-machine-repl
+  main-is:          bin/StackMachineRepl.hs
+  default-language: Haskell2010
+  build-depends:
+    base <5,
+    clash-ulx3s-examples,
+    clash-prelude,
+    haskeline,
+    parsec,
+    serialport,
+    bytestring,
+
+executable ram-repl
+  main-is:          bin/RAMRepl.hs
+  default-language: Haskell2010
+  build-depends:
+    base <5,
+    clash-ulx3s-examples,
+    clash-prelude,
+    haskeline,
+    serialport,
+    bytestring,
