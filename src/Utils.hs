@@ -23,3 +23,9 @@ stickify
   => Signal dom (Maybe a)
   -> Signal dom (Maybe a)
 stickify xm = let ym = liftA2 (<|>) xm (register Nothing ym) in ym
+
+override :: HiddenClockResetEnable dom => BitVector 8 -> Bit -> Signal dom Bit -> Signal dom Bit
+override numCycles x = mealy f 0
+  where
+    f :: BitVector 8 -> Bit -> (BitVector 8, Bit)
+    f count y = if count == numCycles then (count, y) else (count+1, x)

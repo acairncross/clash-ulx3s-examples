@@ -13,6 +13,7 @@ import Data.Function ((&))
 import RAM
 import StackMachine
 import UART
+import Utils
 
 -- Domain with 25MHz clock
 createDomain vXilinxSystem{vName="Dom25", vPeriod=hzToPeriod 25e6}
@@ -32,12 +33,6 @@ counter
   => KnownNat n
   => Signal dom (BitVector n)
 counter = register 0 ((1+) <$> counter)
-
-override :: HiddenClockResetEnable dom => BitVector 8 -> Bit -> Signal dom Bit -> Signal dom Bit
-override numCycles x = mealy f 0
-  where
-    f :: BitVector 8 -> Bit -> (BitVector 8, Bit)
-    f count y = if count == numCycles then (count, y) else (count+1, x)
 
 topRam
   :: "clk_25mhz" ::: Clock Dom25
