@@ -61,7 +61,6 @@ makeTopEntityWithName 'topRam "ram"
 topStackMachine
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit
-  -- -> "led" ::: Signal Dom25 (BitVector 8)
   -> "ftdi_rxd" ::: Signal Dom25 Bit
 topStackMachine clk input =
   withClockResetEnable clk resetGen enableGen $
