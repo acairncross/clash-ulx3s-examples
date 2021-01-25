@@ -47,10 +47,23 @@ processorT instrM = get >>= \(sp, stack) ->
   case instrM of
     Nothing -> return Nothing
     Just instr -> case instr of
-      Push x -> put (sp+1, replace sp x stack) >> return Nothing
-      Pop -> let sp' = sp-1 in put (sp', stack) >> return (Just $ pack (stack !! sp'))
-      Add -> let sp' = sp-1 in put (sp', replace (sp-2) ((stack !! (sp-2)) + (stack !! (sp-1))) stack) >> return Nothing
-      Mul -> let sp' = sp-1 in put (sp', replace (sp-2) ((stack !! (sp-2)) * (stack !! (sp-1))) stack) >> return Nothing
+      Push x -> do
+        put (sp+1, replace sp x stack)
+        return Nothing
+      Pop -> do
+        let sp' = sp-1
+        put (sp', stack)
+        return (Just $ pack (stack !! sp'))
+      Add -> do
+        let lhs = stack !! (sp-2)
+        let rhs = stack !! (sp-1)
+        put (sp-1, replace (sp-2) (lhs + rhs) stack)
+        return Nothing
+      Mul -> do
+        let lhs = stack !! (sp-2)
+        let rhs = stack !! (sp-1)
+        put (sp-1, replace (sp-2) (lhs * rhs) stack)
+        return Nothing
 
 processor
   :: HiddenClockResetEnable dom
