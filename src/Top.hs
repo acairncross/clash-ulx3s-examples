@@ -34,6 +34,15 @@ counter
   => Signal dom (BitVector n)
 counter = register 0 ((1+) <$> counter)
 
+topCounter
+  :: "clk_25mhz" ::: Clock Dom25
+  -> "led" ::: Signal Dom25 (BitVector 8)
+topCounter clk =
+  withClockResetEnable clk resetGen enableGen $
+    fmap (truncateB . (`shiftR` 22)) (counter @32)
+
+makeTopEntityWithName 'topCounter "counter"
+
 topRam
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit
@@ -48,15 +57,6 @@ topRam clk input =
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
 makeTopEntityWithName 'topRam "ram"
-
-topCounter
-  :: "clk_25mhz" ::: Clock Dom25
-  -> "led" ::: Signal Dom25 (BitVector 8)
-topCounter clk =
-  withClockResetEnable clk resetGen enableGen $
-    fmap (truncateB . (`shiftR` 22)) (counter @32)
-
-makeTopEntityWithName 'topCounter "counter"
 
 topStackMachine
   :: "clk_25mhz" ::: Clock Dom25
