@@ -4,7 +4,6 @@ module StackMachine where
 
 import Clash.Prelude hiding (last)
 import Clash.Annotations.BitRepresentation
-import Clash.Annotations.BitRepresentation.Deriving
 
 import Control.Monad.State
 
@@ -18,15 +17,27 @@ data Instr
   | Mul
   deriving (Generic, NFDataX, Eq, Show)
 
--- Note: This overspecifies the Pop, Add and Mul representations to make the
--- derived BitPack instance more usable.
 {-# ANN module (DataReprAnn $(liftQ [t|Instr|]) 16
-  [ ConstrRepr 'Push 0b1111_1111_0000_0000 0b0000_0000_0000_0000 [0b0000_0000_1111_1111]
-  , ConstrRepr 'Pop  0b1111_1111_1111_1111 0b0000_0001_0000_0000 []
-  , ConstrRepr 'Add  0b1111_1111_1111_1111 0b0000_0010_0000_0000 []
-  , ConstrRepr 'Mul  0b1111_1111_1111_1111 0b0000_0011_0000_0000 []
+  [ ConstrRepr 'Push 0b0000_0011_0000_0000 0b0000_0000_0000_0000 [0b0000_0000_1111_1111]
+  , ConstrRepr 'Pop  0b0000_0011_0000_0000 0b0000_0001_0000_0000 []
+  , ConstrRepr 'Add  0b0000_0011_0000_0000 0b0000_0010_0000_0000 []
+  , ConstrRepr 'Mul  0b0000_0011_0000_0000 0b0000_0011_0000_0000 []
   ]) #-}
-deriveBitPack [t|Instr|]
+
+instance BitPack Instr where
+  type BitSize Instr = 16
+  pack instr = case instr of
+    Push n -> zeroExtend (pack n)
+    Pop -> 0b01 `shiftL` 8
+    Add -> 0b10 `shiftL` 8
+    Mul -> 0b11 `shiftL` 8
+
+  unpack bv = case truncateB (bv `shiftR` 8) :: BitVector 2 of
+    0b00 -> Push $ bitCoerce (truncateB bv)
+    0b01 -> Pop
+    0b10 -> Add
+    0b11 -> Mul
+    _ -> error "impossible"
 
 processorT
   :: KnownNat n
