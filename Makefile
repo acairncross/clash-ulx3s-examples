@@ -30,5 +30,6 @@ $(BUILDDIR)/%.json: verilog | $(BUILDDIR)
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
+.PHONY: verilog
 verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs
 	cabal run --write-ghc-environment-files=always clash -- --verilog Top
