@@ -32,6 +32,3 @@ $(BUILDDIR):
 
 verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs
 	cabal run --write-ghc-environment-files=always clash -- --verilog Top
-
-doc/clash.pdf: doc/clash.tex
-	pdflatex -output-directory doc doc/clash.tex
