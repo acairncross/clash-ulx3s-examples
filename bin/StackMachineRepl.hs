@@ -92,6 +92,6 @@ main = runInputT defaultSettings loop
             liftIO $ withSerial "/dev/ttyUSB0" (defaultSerialSettings { commSpeed = CS115200 }) $ \port -> do
               send port instrsBS
               outputBS <- recv port 1
-              mapM_ print (BS.unpack outputBS)
+              mapM_ (print . (\x -> let x' = fromIntegral x :: Int in if x' > 127 then x' - 256 else x')) (BS.unpack outputBS)
             loop
 -- }}}1
