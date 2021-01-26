@@ -87,22 +87,10 @@ main = runInputT defaultSettings loop
             outputStrLn $ show err
             loop
           Right expr -> do
-            -- outputStrLn $ "Parsed as:"
-            -- outputStrLn $ show expr
-
             let instrs = compileCompleteExpr expr
-            -- outputStrLn $ "Compiled to:"
-            -- outputStrLn $ show instrs
-
             let instrsBS = instrsToByteString instrs
-            -- let instrsBSs = map (BS.pack . (\x -> [x])) (BS.unpack instrsBS)
-            -- liftIO $ mapM_ print (BS.unpack instrsBS)
-            -- outputStrLn ""
             liftIO $ withSerial "/dev/ttyUSB0" (defaultSerialSettings { commSpeed = CS115200 }) $ \port -> do
-              numBytes <- send port instrsBS
-              -- putStrLn $ "Sent " <> show numBytes <> " bytes"
-              -- numBytes <- sum <$> traverse (\bs -> send port bs >>= \n -> threadDelay 100 >> return n) instrsBSs
-              -- threadDelay 1000
+              send port instrsBS
               outputBS <- recv port 1
               mapM_ print (BS.unpack outputBS)
             loop
