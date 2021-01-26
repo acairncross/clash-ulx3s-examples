@@ -5,9 +5,9 @@ import Control.Monad.State
 
 -- Utils ----------------------------------------------------------------------
 mealyState
- :: HiddenClockResetEnable dom
- => NFDataX s
- => (i -> State s o) -> s -> (Signal dom i -> Signal dom o)
+  :: HiddenClockResetEnable dom
+  => NFDataX s
+  => (i -> State s o) -> s -> (Signal dom i -> Signal dom o)
 mealyState f = mealy step
   where
     step s x = let (y, s') = runState (f x) s in (s', y)
