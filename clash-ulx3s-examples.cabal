@@ -73,7 +73,8 @@ common common-options
 
 library
   import:           common-options
-  exposed-modules:  RAM
+  exposed-modules:  DVI
+                    RAM
                     StackMachine
                     Top
                     UART
