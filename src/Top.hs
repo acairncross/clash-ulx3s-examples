@@ -1,8 +1,4 @@
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE NumericUnderscores #-}
-
--- createDomain creates an ophan instance of KnownDomain
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Top where
 
@@ -11,22 +7,11 @@ import Clash.Annotations.TH (makeTopEntityWithName)
 import Control.Monad.State
 import Data.Function ((&))
 
+import DVI
 import RAM
 import StackMachine
 import UART
 import Utils
-
--- Domain with 25MHz clock
-createDomain vXilinxSystem{vName="Dom25", vPeriod=hzToPeriod 25e6}
-
--- Divide 1s by rate, rounding up - type level version of hzToPeriod
-type HzToPeriod (rate :: Nat) = (Seconds 1 + rate - 1) `Div` rate
-
-type Seconds      (s  :: Nat) = Milliseconds (1_000 * s)
-type Milliseconds (ms :: Nat) = Microseconds (1_000 * ms)
-type Microseconds (us :: Nat) = Nanoseconds  (1_000 * us)
-type Nanoseconds  (ns :: Nat) = Picoseconds  (1_000 * ns)
-type Picoseconds  (ps :: Nat) = ps
 
 counter
   :: forall n dom
