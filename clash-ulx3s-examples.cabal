@@ -10,6 +10,9 @@ synopsis:      Clash ULX3S examples
 
 category:      Hardware
 
+data-files:
+  prims/*
+
 common common-options
   default-extensions:
     BangPatterns
