@@ -64,14 +64,6 @@ tmdsEncode (de, ctrl, din) = get >>= \cnt -> do
 
   if de
     then do
-      put 0
-      return $ case ctrl of
-        0b00 -> 0b0010101011
-        0b01 -> 0b1101010100
-        0b10 -> 0b0010101010
-        0b11 -> 0b1101010101
-        _ -> error "Impossible"
-    else do
       if cnt == 0 || count1s q_m == count0s q_m
         then do
           if tmMethod == 0
@@ -87,3 +79,11 @@ tmdsEncode (de, ctrl, din) = get >>= \cnt -> do
             let doubleNegTmMethod = if tmMethod == 0 then 2 else 0 :: Signed 8
             put $ cnt - doubleNegTmMethod + count1sMinus0s q_m
             return $ bitCoerce (0 :: Bit, tmMethod, q_m)
+    else do
+      put 0
+      return $ case ctrl of
+        0b00 -> 0b1101010100
+        0b01 -> 0b0010101011
+        0b10 -> 0b0101010100
+        0b11 -> 0b1010101011
+        _ -> error "Impossible"
