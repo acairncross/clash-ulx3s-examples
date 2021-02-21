@@ -1,9 +1,20 @@
+{-# LANGUAGE CPP #-}
+
 module DVI where
 
 import Control.Monad.State
 import Clash.Prelude hiding (d0, d7)
+import Clash.Clocks (Clocks (..))
 
 import Utils
+
+#ifdef CABAL
+import Clash.Annotations.Primitive (Primitive (..), HDL (Verilog))
+import qualified Paths_clash_ulx3s_examples
+import System.IO.Unsafe (unsafePerformIO)
+import System.FilePath ((</>))
+{-# ANN module (Primitive [Verilog] (unsafePerformIO Paths_clash_ulx3s_examples.getDataDir </> "prims")) #-}
+#endif
 
 xnor :: Bits a => a -> a -> a
 xnor x y = complement (x `xor` y)
@@ -12,6 +23,14 @@ popCountBV :: forall n a. KnownNat n => 1 <= n => Integral a => BitVector n -> a
 popCountBV bv =
   let v = bv2v bv
   in sum (map (fromIntegral . pack) v)
+
+ecp5pll25To250
+  :: SSymbol name
+  -> Clock Dom25
+  -> Reset Dom25
+  -> (Clock Dom250, Signal Dom250 Bool)
+ecp5pll25To250 !_ = clocks
+{-# NOINLINE ecp5pll25To250 #-}
 
 -- | A TMDS transmitter
 tmdsTx
