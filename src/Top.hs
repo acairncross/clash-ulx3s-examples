@@ -71,3 +71,12 @@ topStackMachine clk input =
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
 makeTopEntityWithName 'topStackMachine "stackMachine"
+
+topDvi
+  :: "clk_25mhz" ::: Clock Dom25
+  -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
+topDvi clk =
+  let (de, hsync, vsync, color) = withClockResetEnable clk resetGen enableGen vgaPattern
+  in tmdsTx clk de (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+
+makeTopEntityWithName 'topDvi "dvi"

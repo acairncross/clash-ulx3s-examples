@@ -1,10 +1,12 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NumericUnderscores #-}
 
 module DVI where
 
 import Control.Monad.State
-import Clash.Prelude hiding (d0, d7)
 import Clash.Clocks (Clocks (..))
+import Clash.Explicit.Prelude (dualFlipFlopSynchronizer)
+import Clash.Prelude
 
 import Utils
 
@@ -32,11 +34,75 @@ ecp5pll25To250
 ecp5pll25To250 !_ = clocks
 {-# NOINLINE ecp5pll25To250 #-}
 
+-- | Given a TMDS encoded pixel, output the channels in serial, including a
+-- pixel clock.
+tmdsPiso
+  :: forall dom
+   . HiddenClockResetEnable dom
+  => Signal dom (BitVector 10)
+  -> Signal dom (BitVector 10)
+  -> Signal dom (BitVector 10)
+  -> Signal dom (BitVector 4)
+tmdsPiso bs gs rs =
+  mealyState tmdsPisoT (0, 0, 0, 0b11111_00000) (bundle (bs, gs, rs))
+  where
+    tmdsPisoT
+      :: (BitVector 10, BitVector 10, BitVector 10)
+      -> State (BitVector 10, BitVector 10, BitVector 10, BitVector 10) (BitVector 4)
+    tmdsPisoT (bIn, gIn, rIn) = get >>= \(b, g, r, c) -> do
+      let c' = c `rotateR` 1
+      let c'mid = v2bv $ take d2 $ drop d4 $ bv2v c'
+      let b' = if c'mid == 0b10 then bIn else b `rotateR` 1
+      let g' = if c'mid == 0b10 then gIn else g `rotateR` 1
+      let r' = if c'mid == 0b10 then rIn else r `rotateR` 1
+      put (b', g', r', c')
+      return $ bitCoerce (lsb c, lsb r, lsb g, lsb b)
+
+-- | A 600x480 test pattern
+vgaPattern
+  :: HiddenClockResetEnable dom
+  => (Signal dom Bool, Signal dom Bit, Signal dom Bit, Signal dom (BitVector 8))
+  -- ^ Data enable, HSync, VSync, Brightness
+vgaPattern = unbundle $ mealyState vgaPatternT (0, 0) (pure ())
+  where
+    vgaPatternT :: () -> State (BitVector 10, BitVector 10) (Bool, Bit, Bit, BitVector 8)
+    vgaPatternT () = get >>= \(y, x) -> do
+      put $ if x+1 == 800 then (if y+1 == 525 then 0 else y+1, 0) else (y, x+1)
+      return
+        ( x < 640 && y < 480
+        , if x >= 656 && x < 752 then 1 else 0
+        , if y >= 490 && y < 492 then 1 else 0
+        , if (x .&. 0x10 > 0 && not (y .&. 0x10 > 0)) || (not (x .&. 0x10 > 0) && y .&. 0x10 > 0) then 255 else 0
+        )
+
 -- | A TMDS transmitter
 tmdsTx
-  :: HiddenClockResetEnable dom
-  => Signal dom (BitVector 8)
-tmdsTx = undefined
+  :: Clock Dom25
+  -- ^ Pixel clock
+  -> Signal Dom25 Bool
+  -- ^ Data enable
+  -> Signal Dom25 (BitVector 8)
+  -- ^ Blue
+  -> Signal Dom25 (BitVector 8)
+  -- ^ Green
+  -> Signal Dom25 (BitVector 8)
+  -- ^ Red
+  -> Signal Dom25 (BitVector 2)
+  -- ^ Ctrl
+  -> Signal Dom250 (BitVector 4) -- Or maybe this is a different dom?
+  -- ^ Blue, Green, Red, Clock
+tmdsTx clkPixel de blueIn greenIn redIn ctrl =
+  let (clkBit, locked) = ecp5pll25To250 (SSymbol @"mypll") clkPixel resetGen in
+  let blueOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
+        tmdsChannel clkPixel de ctrl blueIn
+
+      greenOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
+        tmdsChannel clkPixel de (pure 0b00) greenIn
+
+      redOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
+        tmdsChannel clkPixel de (pure 0b00) redIn
+
+  in withClockResetEnable clkBit resetGen enableGen $ tmdsPiso blueOut greenOut redOut
 
 -- | A single TMDS channel, or encoder. A TMDS transmitter comprises 3 of these.
 tmdsChannel
@@ -75,7 +141,7 @@ tmdsEncode (de, ctrl, din) = get >>= \cnt -> do
     -- Transition minimization method (XOR vs XNOR)
     tmMethod :: Bit
     tmMethod =
-      if count1s din > 4 || (count1s din == 4 && not (testBit din 0)) then 0 else 1
+      if count1s din > 4 || (count1s din == 4 && lsb din == 0) then 0 else 1
 
     q_m :: BitVector 8
     q_m = v2bv $

@@ -1,6 +1,6 @@
 BUILDDIR ?= build
 
-TOPMODS := stackMachine counter ram
+TOPMODS := stackMachine counter ram dvi
 SYNTHCFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.json))
 ROUTECFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=_out.config))
 BITSTREAMS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.bit))
@@ -31,5 +31,5 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
 .PHONY: verilog
-verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs
+verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs src/DVI.hs
 	cabal run --write-ghc-environment-files=always clash -- --verilog Top
