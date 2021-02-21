@@ -6,3 +6,28 @@ with it.
 
 The top entities/synthesis annotations and Makefile are all specific to the
 ULX3S board, but otherwise the designs are FPGA/board agnostic.
+
+## Example designs
+
+The bitstream for each example can be built with `make <example name>`. Note
+that you will need Yosys and nextpnr built with ECP5 support.
+
+### `counter`
+
+A counter displayed on the on board LEDs.
+
+### `ram`
+
+A block RAM that you can interact with (read and write) over a USB connection
+using a REPL. Run the REPL with `cabal run ram-repl`.
+
+### `stackMachine`
+
+A simple stack machine processor that you can interact with (evaluate arithmetic
+expressions) over a USB connection using a REPL. Run the REPL with `cabal run
+stack-machine-repl`.
+
+### `dvi`
+
+Uses a DVI transmitter to display test pattern on a monitor connected via the
+GPDI port.
