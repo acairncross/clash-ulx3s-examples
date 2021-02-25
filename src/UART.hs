@@ -20,7 +20,7 @@ data RxBit n
 uartRxT :: KnownNat n => Word32 -> Bit -> State (RxState n) (Maybe (BitVector n))
 uartRxT clocksPerBaud input = get >>= \case
   RxIdle -> do
-    when (input == low) $ put (RxBit 0 (RxStartBit))
+    when (input == low) $ put (RxBit 0 RxStartBit)
     return Nothing
   RxBit cnt rxBit -> do
     let cnt1 = cnt + 1

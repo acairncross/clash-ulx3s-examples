@@ -154,7 +154,7 @@ tmdsEncode (de, ctrl, din) = get >>= \cnt -> do
           if tmMethod == 0
             then put $ cnt + count0sMinus1s q_m
             else put $ cnt + count1sMinus0s q_m
-          return $ bitCoerce (complement tmMethod, tmMethod, (if tmMethod == 1 then q_m else complement q_m))
+          return $ bitCoerce (complement tmMethod, tmMethod, if tmMethod == 1 then q_m else complement q_m)
         else if (cnt > 0 && count1s q_m > count0s q_m) || (cnt < 0 && count0s q_m > count1s q_m)
           then do
             let doubleTmMethod = if tmMethod == 0 then 0 else 2 :: Signed 8
