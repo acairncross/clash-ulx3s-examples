@@ -26,7 +26,7 @@ import qualified Data.Text as TextS
 ecp5pllTF :: TemplateFunction
 ecp5pllTF = TemplateFunction used valid ecp5pllTemplate
   where
-    used = [0..3] -- TODO Use reset
+    used = [0..4]
     valid = const True
 
 -- Get the period of a KnownDomain constraint
@@ -37,7 +37,7 @@ extractPeriod _ = error "expected blackbox argument to be a KnownDomain constrai
 ecp5pllTemplate :: Backend s => BlackBoxContext -> State s Doc
 ecp5pllTemplate bbCtx = do
   -- Inputs
-  let [ knownDomIn, knownDomOut, nameArg, clkArg, _rstArg ] = bbInputs bbCtx
+  let [ knownDomIn, knownDomOut, nameArg, clkArg, rstArg ] = bbInputs bbCtx
 
   let inPeriod = extractPeriod knownDomIn
   let outPeriod = extractPeriod knownDomOut
@@ -46,6 +46,7 @@ ecp5pllTemplate bbCtx = do
   let Just instName = TextS.pack <$> exprToString instNameE
 
   let (clk, clkTy, _) = clkArg
+  let (rst, rstTy, _) = rstArg
 
   -- Result
   let (Identifier result Nothing, resTy@(Product _ _ [clkOutTy, _])) = bbResult bbCtx
@@ -64,7 +65,7 @@ ecp5pllTemplate bbCtx = do
     [ NetDecl Nothing locked Bit
     , NetDecl Nothing clkOut clkOutTy
     , InstDecl Comp Nothing "EHXPLLL" instName
-        [ stringParam "PLLRST_ENA" "DISABLED" -- TODO Enable
+        [ stringParam "PLLRST_ENA" "ENABLED"
         , stringParam "INTFB_WAKE" "DISABLED"
         , stringParam "STDBY_ENABLE" "DISABLED"
         , stringParam "DPHASE_SOURCE" "DISABLED"
@@ -80,7 +81,7 @@ ecp5pllTemplate bbCtx = do
         , stringParam "FEEDBK_PATH" "CLKOP"
         , intParam "CLKFB_DIV" (toInteger feedbackDiv)
         ]
-        [ (Identifier "RST" Nothing, In, Bit, Literal Nothing (BitLit L)) -- TODO Enable
+        [ (Identifier "RST" Nothing, In, rstTy, rst)
         , (Identifier "STDBY" Nothing, In, Bit, Literal Nothing (BitLit L))
         , (Identifier "CLKI" Nothing, In, clkTy, clk)
         , (Identifier "CLKOP" Nothing, Out, clkOutTy, Identifier clkOut Nothing)
