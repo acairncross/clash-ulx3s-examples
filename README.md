@@ -5,7 +5,8 @@ you can use to synthesise a bitstream, program it on to an FPGA and interact
 with it.
 
 The top entities/synthesis annotations and Makefile are all specific to the
-ULX3S board, but otherwise the designs are FPGA/board agnostic.
+ULX3S board, as is the PLL primitive, but otherwise the designs are FPGA/board
+agnostic.
 
 ## Example designs
 
