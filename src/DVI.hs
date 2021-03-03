@@ -1,22 +1,14 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NumericUnderscores #-}
 
 module DVI where
 
+import ECP5 (ecp5pll)
+
 import Control.Monad.State
-import Clash.Clocks (Clocks (..))
 import Clash.Explicit.Prelude (dualFlipFlopSynchronizer)
 import Clash.Prelude
 
 import Utils
-
-#ifdef CABAL
-import Clash.Annotations.Primitive (Primitive (..), HDL (Verilog))
-import qualified Paths_clash_ulx3s_examples
-import System.IO.Unsafe (unsafePerformIO)
-import System.FilePath ((</>))
-{-# ANN module (Primitive [Verilog] (unsafePerformIO Paths_clash_ulx3s_examples.getDataDir </> "prims")) #-}
-#endif
 
 xnor :: Bits a => a -> a -> a
 xnor x y = complement (x `xor` y)
@@ -25,14 +17,6 @@ popCountBV :: forall n a. KnownNat n => 1 <= n => Integral a => BitVector n -> a
 popCountBV bv =
   let v = bv2v bv
   in sum (map (fromIntegral . pack) v)
-
-ecp5pll25To250
-  :: SSymbol name
-  -> Clock Dom25
-  -> Reset Dom25
-  -> (Clock Dom250, Signal Dom250 Bool)
-ecp5pll25To250 !_ = clocks
-{-# NOINLINE ecp5pll25To250 #-}
 
 -- | Given a TMDS encoded pixel, output the channels in serial, including a
 -- pixel clock.
@@ -92,7 +76,7 @@ tmdsTx
   -> Signal Dom250 (BitVector 4) -- Or maybe this is a different dom?
   -- ^ Blue, Green, Red, Clock
 tmdsTx clkPixel de blueIn greenIn redIn ctrl =
-  let (clkBit, locked) = ecp5pll25To250 (SSymbol @"mypll") clkPixel resetGen in
+  let (clkBit, locked) = ecp5pll (SSymbol @"tmds_pll") clkPixel resetGen in
   let blueOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
         tmdsChannel clkPixel de ctrl blueIn
 

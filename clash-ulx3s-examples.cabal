@@ -76,18 +76,20 @@ common common-options
 
 library
   import:           common-options
-  exposed-modules:  DVI
+  exposed-modules:  ECP5
+                    ECP5.Primitive
+                    DVI
                     RAM
                     StackMachine
                     Top
                     UART
                     Utils
-  other-modules:    Paths_clash_ulx3s_examples
   hs-source-dirs:   src
   default-language: Haskell2010
-  cpp-options:      -DCABAL
 
   build-depends:
+    clash-lib,
+    interpolate,
     filepath,
     mtl,
     reducers,
