@@ -52,7 +52,15 @@ oddrx1 x1 y1 !_ !_ =
   [ { "BlackBox" :
       { "name" : "ECP5.oddrx1"
       , "kind" : "Declaration"
-      , "template" : "ODDRX1F(~ARG[3], ~ARG[4], ~ARG[6], ~ARG[5], ~RESULT);"
+      , "template" :
+"ODDRX1F
+(
+  .D0(~ARG[3]),
+  .D1(~ARG[4]),
+  .RST(~ARG[6]),
+  .SCLK(~ARG[5]),
+  .Q(~RESULT)
+);"
       }
     }
   ]
