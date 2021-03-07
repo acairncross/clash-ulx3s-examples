@@ -28,7 +28,7 @@ ecp5pll !_ = knownDomain @domIn `seq` knownDomain @domOut `seq` clocks
       }
     }
   ]
-  |]) #-}
+|]) #-}
 
 oddrx1
   :: forall domIn domOut
