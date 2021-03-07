@@ -42,7 +42,7 @@ tmdsPiso bs gs rs =
       put (b', g', r', c')
       return $ bitCoerce (lsb c, lsb r, lsb g, lsb b)
 
--- | A 600x480 test pattern
+-- | A 640x480 test pattern
 vgaPattern
   :: HiddenClockResetEnable dom
   => (Signal dom Bool, Signal dom Bit, Signal dom Bit, Signal dom (BitVector 8))
@@ -73,7 +73,7 @@ tmdsTx
   -- ^ Red
   -> Signal Dom25 (BitVector 2)
   -- ^ Ctrl
-  -> Signal Dom250 (BitVector 4) -- Or maybe this is a different dom?
+  -> Signal Dom250 (BitVector 4)
   -- ^ Blue, Green, Red, Clock
 tmdsTx clkPixel de blueIn greenIn redIn ctrl =
   let (clkBit, locked) = ecp5pll (SSymbol @"tmds_pll") clkPixel resetGen in
