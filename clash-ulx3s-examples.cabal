@@ -76,7 +76,8 @@ common common-options
 
 library
   import:           common-options
-  exposed-modules:  ECP5
+  exposed-modules:  Clocks
+                    ECP5
                     ECP5.Primitive
                     DVI
                     RAM

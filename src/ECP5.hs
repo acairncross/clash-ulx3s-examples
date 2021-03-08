@@ -40,10 +40,11 @@ oddrx1
   -> Clock domIn
   -> Reset domIn
   -> Signal domOut Bit
-oddrx1 x1 y1 !_ !_ =
-  let x2 = unsafeSynchronizer (clockGen @domIn) (clockGen @domOut) x1
-      y2 = unsafeSynchronizer (clockGen @domIn) (clockGen @domOut) y1
-  in withClockResetEnable (clockGen @domOut) (resetGen @domOut) enableGen $
+oddrx1 x1 y1 !clkIn !_ =
+  let x2 = unsafeSynchronizer clkIn (clockGen @domOut) x1
+      y2 = unsafeSynchronizer clkIn (clockGen @domOut) y1
+  in
+    withClockResetEnable (clockGen @domOut) (resetGen @domOut) (enableGen @domOut) $
       mealyB mergeT False (x2, y2)
   where
     mergeT b (x, y) = (not b, if b then y else x)

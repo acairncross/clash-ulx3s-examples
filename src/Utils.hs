@@ -1,12 +1,11 @@
 {-# LANGUAGE NumericUnderscores #-}
 
--- createDomain creates an ophan instance of KnownDomain
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Utils where
 
 import Clash.Prelude
 import Control.Monad.State
+import Numeric.Natural
+import Data.Ratio
 
 -- Utils ----------------------------------------------------------------------
 mealyState
@@ -35,18 +34,7 @@ override numCycles x = mealy f 0
     f :: BitVector 8 -> Bit -> (BitVector 8, Bit)
     f count y = if count == numCycles then (count, y) else (count+1, x)
 
--- Clock domains --------------------------------------------------------------
-
--- Domain with 25MHz clock
-createDomain vXilinxSystem{vName="Dom25", vPeriod=hzToPeriod 25e6}
--- Domain with 250MHz clock
-createDomain vXilinxSystem{vName="Dom250", vPeriod=hzToPeriod 250e6}
-
--- Divide 1s by rate, rounding up - type level version of hzToPeriod
-type HzToPeriod (rate :: Nat) = (Seconds 1 + rate - 1) `Div` rate
-
-type Seconds      (s  :: Nat) = Milliseconds (1_000 * s)
-type Milliseconds (ms :: Nat) = Microseconds (1_000 * ms)
-type Microseconds (us :: Nat) = Nanoseconds  (1_000 * us)
-type Nanoseconds  (ns :: Nat) = Picoseconds  (1_000 * ns)
-type Picoseconds  (ps :: Nat) = ps
+exactHzToPeriod :: Integer -> Natural
+exactHzToPeriod freq
+  | freq <= 0 = error "Frequency must be positive"
+  | otherwise = ceiling (fromRational $ (1 % freq) * 1_000_000_000_000 :: Double)

@@ -7,7 +7,9 @@ import Clash.Annotations.TH (makeTopEntityWithName)
 import Control.Monad.State
 import Data.Function ((&))
 
+import Clocks
 import DVI
+import ECP5
 import RAM
 import StackMachine
 import UART
@@ -76,7 +78,22 @@ topDvi
   :: "clk_25mhz" ::: Clock Dom25
   -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
 topDvi clk =
-  let (de, hsync, vsync, color) = withClockResetEnable clk resetGen enableGen vgaPattern
-  in tmdsTx clk de (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+  let (clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clk resetGen
+
+      (de, hsync, vsync, color) = withClockResetEnable clk resetGen enableGen vgaPattern
+
+      sdrOut :: Signal Dom125 (Vec 4 (BitVector 2))
+      sdrOut = tmdsTx clk clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+
+      sdrOutUnbundled :: Vec 4 (Signal Dom125 Bit, Signal Dom125 Bit)
+      sdrOutUnbundled = map (unbundle . fmap bitCoerce) $ unbundle sdrOut
+
+      ddrOutUnbundled :: Vec 4 (Signal Dom250 Bit)
+      ddrOutUnbundled = map (\(x, y) -> oddrx1 y x clkShift resetGen) sdrOutUnbundled
+
+      ddrOut :: Signal Dom250 (BitVector 4)
+      ddrOut = fmap v2bv $ bundle ddrOutUnbundled
+
+  in ddrOut
 
 makeTopEntityWithName 'topDvi "dvi"

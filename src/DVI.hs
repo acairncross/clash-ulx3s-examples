@@ -2,12 +2,11 @@
 
 module DVI where
 
-import ECP5 (ecp5pll)
-
 import Control.Monad.State
 import Clash.Explicit.Prelude (dualFlipFlopSynchronizer)
 import Clash.Prelude
 
+import Clocks
 import Utils
 
 xnor :: Bits a => a -> a -> a
@@ -26,21 +25,24 @@ tmdsPiso
   => Signal dom (BitVector 10)
   -> Signal dom (BitVector 10)
   -> Signal dom (BitVector 10)
-  -> Signal dom (BitVector 4)
+  -> Signal dom (Vec 4 (BitVector 2))
 tmdsPiso bs gs rs =
   mealyState tmdsPisoT (0, 0, 0, 0b11111_00000) (bundle (bs, gs, rs))
   where
+    lsbs :: SNat a -> BitVector (a+b) -> BitVector a
+    lsbs SNat = truncateB
+
     tmdsPisoT
       :: (BitVector 10, BitVector 10, BitVector 10)
-      -> State (BitVector 10, BitVector 10, BitVector 10, BitVector 10) (BitVector 4)
+      -> State (BitVector 10, BitVector 10, BitVector 10, BitVector 10) (Vec 4 (BitVector 2))
     tmdsPisoT (bIn, gIn, rIn) = get >>= \(b, g, r, c) -> do
-      let c' = c `rotateR` 1
+      let c' = c `rotateR` 2
       let c'mid = v2bv $ take d2 $ drop d4 $ bv2v c'
-      let b' = if c'mid == 0b10 then bIn else b `rotateR` 1
-      let g' = if c'mid == 0b10 then gIn else g `rotateR` 1
-      let r' = if c'mid == 0b10 then rIn else r `rotateR` 1
+      let b' = if c'mid == 0b10 then bIn else b `rotateR` 2
+      let g' = if c'mid == 0b10 then gIn else g `rotateR` 2
+      let r' = if c'mid == 0b10 then rIn else r `rotateR` 2
       put (b', g', r', c')
-      return $ bitCoerce (lsb c, lsb r, lsb g, lsb b)
+      return $ bitCoerce (lsbs d2 c, lsbs d2 r, lsbs d2 g, lsbs d2 b)
 
 -- | A 640x480 test pattern
 vgaPattern
@@ -63,8 +65,12 @@ vgaPattern = unbundle $ mealyState vgaPatternT (0, 0) (pure ())
 tmdsTx
   :: Clock Dom25
   -- ^ Pixel clock
+  -> Clock Dom125
+  -- ^ Bit clock
   -> Signal Dom25 Bool
   -- ^ Data enable
+  -> Signal Dom125 Bool
+  -- ^ Bit clock locked
   -> Signal Dom25 (BitVector 8)
   -- ^ Blue
   -> Signal Dom25 (BitVector 8)
@@ -73,10 +79,9 @@ tmdsTx
   -- ^ Red
   -> Signal Dom25 (BitVector 2)
   -- ^ Ctrl
-  -> Signal Dom250 (BitVector 4)
+  -> Signal Dom125 (Vec 4 (BitVector 2))
   -- ^ Blue, Green, Red, Clock
-tmdsTx clkPixel de blueIn greenIn redIn ctrl =
-  let (clkBit, locked) = ecp5pll (SSymbol @"tmds_pll") clkPixel resetGen in
+tmdsTx clkPixel clkBit de locked blueIn greenIn redIn ctrl =
   let blueOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
         tmdsChannel clkPixel de ctrl blueIn
 
