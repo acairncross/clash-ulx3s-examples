@@ -54,7 +54,7 @@ oddrx1 x1 y1 !clkIn !_ =
       { "name" : "ECP5.oddrx1"
       , "kind" : "Declaration"
       , "template" :
-"ODDRX1F
+"ODDRX1F ~GENSYM[oddr_inst][0]
 (
   .D0(~ARG[3]),
   .D1(~ARG[4]),
