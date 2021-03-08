@@ -4,9 +4,9 @@ This is a collection of Clash designs, build scripts and Haskell programs that
 you can use to synthesise a bitstream, program it on to an FPGA and interact
 with it.
 
-The top entities/synthesis annotations and Makefile are all specific to the
-ULX3S board, as is the PLL primitive, but otherwise the designs are FPGA/board
-agnostic.
+Much of the designs are FPGA/board agnostic, but there are a few ECP5 specific
+primitives, and the top entities/synthesis annotations and Makefile are
+specific to the ULX3S board.
 
 ## Example designs
 
