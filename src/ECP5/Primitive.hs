@@ -15,10 +15,11 @@ import Data.Maybe (fromMaybe)
 import Clash.Signal (periodToHz)
 
 -- clash-lib (blackbox types/functions)
-import Clash.Backend (Backend (..), mkUniqueIdentifier)
+import Clash.Backend (Backend (..))
 import Clash.Netlist.BlackBox.Util (exprToString)
-import Clash.Netlist.Id (IdType (Basic))
+import Clash.Netlist.Id (addRaw, makeBasic)
 import Clash.Netlist.Types
+import Clash.Netlist.Util (instPort)
 import Data.Semigroup.Monad (Mon (getMon))
 import Data.Text.Prettyprint.Doc.Extra (Doc)
 import qualified Data.Text as TextS
@@ -43,17 +44,18 @@ ecp5pllTemplate bbCtx = do
   let outPeriod = extractPeriod knownDomOut
 
   let (instNameE, _, _) = nameArg
-  let Just instName = TextS.pack <$> exprToString instNameE
+  let Just instNameT = TextS.pack <$> exprToString instNameE
+  instName <- makeBasic instNameT
 
   let (clk, clkTy, _) = clkArg
   let (rst, rstTy, _) = rstArg
 
   -- Result
-  let (Identifier result Nothing, resTy@(Product _ _ [clkOutTy, _])) = bbResult bbCtx
+  let [(Identifier result Nothing, resTy@(Product _ _ [clkOutTy, _]))] = bbResults bbCtx
 
-  clkOut <- mkUniqueIdentifier Basic "clkOut"
-  locked <- mkUniqueIdentifier Basic "locked"
-  blockName <- mkUniqueIdentifier Basic "ecp5pll_block"
+  clkOut <- makeBasic "clkOut"
+  locked <- makeBasic "locked"
+  blockName <- makeBasic "ecp5pll_block"
 
   let inHz = round $ periodToHz (fromIntegral inPeriod) * 1e-6 :: Int
   let outHz = round $ periodToHz (fromIntegral outPeriod) * 1e-6 :: Int
@@ -61,10 +63,12 @@ ecp5pllTemplate bbCtx = do
         fromMaybe (error "failed to find suitable PLL parameters")
           $ calculatePllParams (fromIntegral inHz) (fromIntegral outHz)
 
+  primName <- addRaw "EHXPLLL"
+
   getMon $ blockDecl blockName
     [ NetDecl Nothing locked Bit
     , NetDecl Nothing clkOut clkOutTy
-    , InstDecl Comp Nothing "EHXPLLL" instName
+    , InstDecl Comp Nothing [] primName instName
         [ stringParam "PLLRST_ENA" "ENABLED"
         , stringParam "INTFB_WAKE" "DISABLED"
         , stringParam "STDBY_ENABLE" "DISABLED"
@@ -81,20 +85,21 @@ ecp5pllTemplate bbCtx = do
         , stringParam "FEEDBK_PATH" "CLKOP"
         , intParam "CLKFB_DIV" (toInteger feedbackDiv)
         ]
-        [ (Identifier "RST" Nothing, In, rstTy, rst)
-        , (Identifier "STDBY" Nothing, In, Bit, Literal Nothing (BitLit L))
-        , (Identifier "CLKI" Nothing, In, clkTy, clk)
-        , (Identifier "CLKOP" Nothing, Out, clkOutTy, Identifier clkOut Nothing)
-        , (Identifier "CLKFB" Nothing, Out, clkOutTy, Identifier clkOut Nothing)
-        , (Identifier "PHASESEL0" Nothing, In, Bit, Literal Nothing (BitLit L))
-        , (Identifier "PHASESEL1" Nothing, In, Bit, Literal Nothing (BitLit L))
-        , (Identifier "PHASEDIR" Nothing, In, Bit, Literal Nothing (BitLit H))
-        , (Identifier "PHASESTEP" Nothing, In, Bit, Literal Nothing (BitLit H))
-        , (Identifier "PHASELOADREG" Nothing, In, Bit, Literal Nothing (BitLit H))
-        , (Identifier "PLLWAKESYNC" Nothing, In, Bit, Literal Nothing (BitLit L))
-        , (Identifier "ENCLKOP" Nothing, In, Bit, Literal Nothing (BitLit L))
-        , (Identifier "LOCK" Nothing, Out, Bit, Identifier locked Nothing)
-        ]
+        ( NamedPortMap
+        [ (instPort "RST", In, rstTy, rst)
+        , (instPort "STDBY", In, Bit, Literal Nothing (BitLit L))
+        , (instPort "CLKI", In, clkTy, clk)
+        , (instPort "CLKOP", Out, clkOutTy, Identifier clkOut Nothing)
+        , (instPort "CLKFB", Out, clkOutTy, Identifier clkOut Nothing)
+        , (instPort "PHASESEL0", In, Bit, Literal Nothing (BitLit L))
+        , (instPort "PHASESEL1", In, Bit, Literal Nothing (BitLit L))
+        , (instPort "PHASEDIR", In, Bit, Literal Nothing (BitLit H))
+        , (instPort "PHASESTEP", In, Bit, Literal Nothing (BitLit H))
+        , (instPort "PHASELOADREG", In, Bit, Literal Nothing (BitLit H))
+        , (instPort "PLLWAKESYNC", In, Bit, Literal Nothing (BitLit L))
+        , (instPort "ENCLKOP", In, Bit, Literal Nothing (BitLit L))
+        , (instPort "LOCK", Out, Bit, Identifier locked Nothing)
+        ])
     , Assignment result
         ( DataCon resTy (DC (resTy, 0))
           [ Identifier clkOut Nothing
@@ -103,13 +108,13 @@ ecp5pllTemplate bbCtx = do
         )
     ]
   where
-    stringParam :: Identifier -> String -> (Expr, HWType, Expr)
+    stringParam :: TextS.Text -> String -> (Expr, HWType, Expr)
     stringParam ident value =
-      (Identifier ident Nothing, String, Literal Nothing (StringLit value))
+      (instPort ident, String, Literal Nothing (StringLit value))
 
-    intParam :: Identifier -> Integer -> (Expr, HWType, Expr)
+    intParam :: TextS.Text -> Integer -> (Expr, HWType, Expr)
     intParam ident value =
-      (Identifier ident Nothing, Integer, Literal Nothing (NumLit value))
+      (instPort ident, Integer, Literal Nothing (NumLit value))
 
 -- Generating PLL parameters from input/output frequencies
 
