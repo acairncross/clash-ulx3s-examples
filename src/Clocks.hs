@@ -7,12 +7,10 @@ module Clocks where
 
 import Clash.Prelude
 
-import Utils (exactHzToPeriod)
-
 -- Domain with 25MHz clock
-createDomain vXilinxSystem{vName="Dom25", vPeriod=exactHzToPeriod 25_000_000}
-createDomain vXilinxSystem{vName="Dom125", vPeriod=exactHzToPeriod 125_000_000}
-createDomain vXilinxSystem{vName="Dom250", vPeriod=exactHzToPeriod 250_000_000}
+createDomain vXilinxSystem{vName="Dom25", vPeriod=hzToPeriod 25_000_000}
+createDomain vXilinxSystem{vName="Dom125", vPeriod=hzToPeriod 125_000_000}
+createDomain vXilinxSystem{vName="Dom250", vPeriod=hzToPeriod 250_000_000}
 
 -- Divide 1s by rate, rounding up - type level version of hzToPeriod
 type HzToPeriod (rate :: Nat) = (Seconds 1 + rate - 1) `Div` rate

@@ -4,8 +4,6 @@ module Utils where
 
 import Clash.Prelude
 import Control.Monad.State
-import Numeric.Natural
-import Data.Ratio
 
 -- Utils ----------------------------------------------------------------------
 mealyState
@@ -33,8 +31,3 @@ override numCycles x = mealy f 0
   where
     f :: BitVector 8 -> Bit -> (BitVector 8, Bit)
     f count y = if count == numCycles then (count, y) else (count+1, x)
-
-exactHzToPeriod :: Integer -> Natural
-exactHzToPeriod freq
-  | freq <= 0 = error "Frequency must be positive"
-  | otherwise = ceiling (fromRational $ (1 % freq) * 1_000_000_000_000 :: Double)
