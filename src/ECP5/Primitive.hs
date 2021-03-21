@@ -1,11 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module ECP5.Primitive (ecp5pllTF) where
 
 import Prelude
 
-import Control.Monad (guard)
+import Control.Monad (guard, forM)
 import Control.Monad.State (State)
 import Data.Function (on)
 import Data.List (minimumBy)
@@ -17,9 +17,9 @@ import Clash.Signal (periodToHz)
 -- clash-lib (blackbox types/functions)
 import Clash.Backend (Backend (..))
 import Clash.Netlist.BlackBox.Util (exprToString)
-import Clash.Netlist.Id (addRaw, makeBasic)
+import qualified Clash.Netlist.Id as Id
 import Clash.Netlist.Types
-import Clash.Netlist.Util (instPort)
+import Clash.Netlist.Util (instPort, stripVoid)
 import Data.Semigroup.Monad (Mon (getMon))
 import Data.Text.Prettyprint.Doc.Extra (Doc)
 import qualified Data.Text as TextS
@@ -27,85 +27,120 @@ import qualified Data.Text as TextS
 ecp5pllTF :: TemplateFunction
 ecp5pllTF = TemplateFunction used valid ecp5pllTemplate
   where
-    used = [0..4]
+    used = [1..5]
     valid = const True
 
 -- Get the period of a KnownDomain constraint
-extractPeriod :: (Expr, HWType, Bool) -> Integer
-extractPeriod (_, Void (Just (KnownDomain _ period _ _ _ _)), _) = period
-extractPeriod _ = error "expected blackbox argument to be a KnownDomain constraint"
+extractPeriod :: HWType -> Integer
+extractPeriod (KnownDomain _ period _ _ _ _) = period
+extractPeriod _ = error "expected HWType to be a KnownDomain constraint"
+
+-- Get the periods of one or more KnownDomain constraints
+extractPeriods :: HWType -> [Integer]
+extractPeriods (KnownDomain _ period _ _ _ _) = [period]
+extractPeriods (Product _ _ knownDomains) = map extractPeriod knownDomains
+extractPeriods _ = error "expected HWType to be a Product type"
 
 ecp5pllTemplate :: Backend s => BlackBoxContext -> State s Doc
 ecp5pllTemplate bbCtx = do
   -- Inputs
-  let [ knownDomIn, knownDomOut, nameArg, clkArg, rstArg ] = bbInputs bbCtx
+  let [ _clocks, knownDomInArg, knownDomOutArgs, nameArg, clkInArg, rstArg ] = bbInputs bbCtx
 
-  let inPeriod = extractPeriod knownDomIn
-  let outPeriod = extractPeriod knownDomOut
+  let (_, extractPeriod . stripVoid -> inPeriod, _) = knownDomInArg
+  let (_, extractPeriods . stripVoid -> outPeriods, _) = knownDomOutArgs
 
   let (instNameE, _, _) = nameArg
   let Just instNameT = TextS.pack <$> exprToString instNameE
-  instName <- makeBasic instNameT
+  instName <- Id.makeBasic instNameT
+  blockName <- Id.makeBasic "ecp5pll_block"
+  primName <- Id.addRaw "EHXPLLL"
 
-  let (clk, clkTy, _) = clkArg
+  let (clkIn, clkInTy, _) = clkInArg
   let (rst, rstTy, _) = rstArg
 
   -- Result
-  let [(Identifier result Nothing, resTy@(Product _ _ [clkOutTy, _]))] = bbResults bbCtx
+  let [(Identifier result Nothing, resTy@(Product _ _ (init -> clkOutTys)))] = bbResults bbCtx
+  let primaryClkOutTy:secondaryClkOutTys = clkOutTys
 
-  clkOut <- makeBasic "clkOut"
-  locked <- makeBasic "locked"
-  blockName <- makeBasic "ecp5pll_block"
+  -- Convert periods to frequencies in Hz
+  let inFreq = round $ periodToHz (fromIntegral inPeriod) * 1e-6 :: Int
+  let primaryOutFreq:secondaryOutFreqs =
+        map (\period -> round $ periodToHz (fromIntegral period) * 1e-6) outPeriods :: [Int]
 
-  let inHz = round $ periodToHz (fromIntegral inPeriod) * 1e-6 :: Int
-  let outHz = round $ periodToHz (fromIntegral outPeriod) * 1e-6 :: Int
-  let PllParams { refClkDiv, feedbackDiv, outputDiv } =
+  -- Primary PLL params
+  let PllParams { refClkDiv, feedbackDiv, outputDiv, primaryCPhase, fVco } =
         fromMaybe (error "failed to find suitable PLL parameters")
-          $ calculatePllParams (fromIntegral inHz) (fromIntegral outHz)
+          $ calculatePllParams (fromIntegral inFreq) (fromIntegral primaryOutFreq)
 
-  primName <- addRaw "EHXPLLL"
+  -- Secondary PLL params
+  let secondaryPllParams =
+        map (\freq -> generateSecondaryOutput fVco (fromIntegral freq) 0 primaryCPhase) secondaryOutFreqs
 
-  getMon $ blockDecl blockName
-    [ NetDecl Nothing locked Bit
-    , NetDecl Nothing clkOut clkOutTy
-    , InstDecl Comp Nothing [] primName instName
-        [ stringParam "PLLRST_ENA" "ENABLED"
-        , stringParam "INTFB_WAKE" "DISABLED"
-        , stringParam "STDBY_ENABLE" "DISABLED"
-        , stringParam "DPHASE_SOURCE" "DISABLED"
-        , stringParam "OUTDIVIDER_MUXA" "DIVA"
-        , stringParam "OUTDIVIDER_MUXB" "DIVB"
-        , stringParam "OUTDIVIDER_MUXC" "DIVC"
-        , stringParam "OUTDIVIDER_MUXD" "DIVD"
-        , intParam "CLKI_DIV" (toInteger refClkDiv)
-        , stringParam "CLKOP_ENABLE" "ENABLED"
-        , intParam "CLKOP_DIV" (toInteger outputDiv)
-        , intParam "CLKOP_CPHASE" 0
-        , intParam "CLKOP_FPHASE" 0
-        , stringParam "FEEDBK_PATH" "CLKOP"
-        , intParam "CLKFB_DIV" (toInteger feedbackDiv)
-        ]
-        ( NamedPortMap
-        [ (instPort "RST", In, rstTy, rst)
-        , (instPort "STDBY", In, Bit, Literal Nothing (BitLit L))
-        , (instPort "CLKI", In, clkTy, clk)
-        , (instPort "CLKOP", Out, clkOutTy, Identifier clkOut Nothing)
-        , (instPort "CLKFB", Out, clkOutTy, Identifier clkOut Nothing)
-        , (instPort "PHASESEL0", In, Bit, Literal Nothing (BitLit L))
-        , (instPort "PHASESEL1", In, Bit, Literal Nothing (BitLit L))
-        , (instPort "PHASEDIR", In, Bit, Literal Nothing (BitLit H))
-        , (instPort "PHASESTEP", In, Bit, Literal Nothing (BitLit H))
-        , (instPort "PHASELOADREG", In, Bit, Literal Nothing (BitLit H))
-        , (instPort "PLLWAKESYNC", In, Bit, Literal Nothing (BitLit L))
-        , (instPort "ENCLKOP", In, Bit, Literal Nothing (BitLit L))
-        , (instPort "LOCK", Out, Bit, Identifier locked Nothing)
-        ])
-    , Assignment result
-        ( DataCon resTy (DC (resTy, 0))
-          [ Identifier clkOut Nothing
-          , Identifier locked Nothing
+  locked <- Id.makeBasic "locked"
+  primaryClkOut <- Id.makeBasic "clkOut0"
+  secondaryClkOuts <- forM (zip ([1..3] :: [Int]) secondaryPllParams) $ \(i, _) ->
+    Id.makeBasic ("clkOut" <> TextS.pack (show i))
+
+  getMon $ blockDecl blockName $ concat
+    [ [ NetDecl Nothing locked Bit
+      , NetDecl Nothing primaryClkOut primaryClkOutTy
+      ]
+    , [ NetDecl Nothing clkOut clkTy | (clkOut, clkTy) <- zip secondaryClkOuts secondaryClkOutTys ]
+    , [ InstDecl Comp Nothing [] primName instName
+        ( [ stringParam "PLLRST_ENA" "ENABLED"
+          , stringParam "INTFB_WAKE" "DISABLED"
+          , stringParam "STDBY_ENABLE" "DISABLED"
+          , stringParam "DPHASE_SOURCE" "DISABLED"
+          , stringParam "OUTDIVIDER_MUXA" "DIVA"
+          , stringParam "OUTDIVIDER_MUXB" "DIVB"
+          , stringParam "OUTDIVIDER_MUXC" "DIVC"
+          , stringParam "OUTDIVIDER_MUXD" "DIVD"
+          , intParam "CLKI_DIV" (toInteger refClkDiv)
+          , stringParam "CLKOP_ENABLE" "ENABLED"
+          , intParam "CLKOP_DIV" (toInteger outputDiv)
+          , intParam "CLKOP_CPHASE" (toInteger primaryCPhase)
+          , intParam "CLKOP_FPHASE" 0
+          ] ++
+          concat
+          [ [ stringParam "CLKOS_ENABLE" "ENABLED"
+            , intParam ("CLKOS" <> clkSuffix <> "_DIV") (toInteger divisor)
+            , intParam ("CLKOS" <> clkSuffix <> "_CPHASE") (toInteger cPhase)
+            , intParam ("CLKOS" <> clkSuffix <> "_FPHASE") (toInteger fPhase)
+            ]
+          | (clkSuffix, SecondaryPllParams { divisor, cPhase, fPhase })
+            <- zip ["", "2", "3"] secondaryPllParams
+          ] ++
+          [ stringParam "FEEDBK_PATH" "CLKOP"
+          , intParam "CLKFB_DIV" (toInteger feedbackDiv)
           ]
         )
+        ( NamedPortMap $
+          [ (instPort "RST", In, rstTy, rst)
+          , (instPort "STDBY", In, Bit, Literal Nothing (BitLit L))
+          , (instPort "CLKI", In, clkInTy, clkIn)
+          , (instPort "CLKOP", Out, primaryClkOutTy, Identifier primaryClkOut Nothing)
+          ] ++
+          [ (instPort ("CLKOS" <> clkSuffix), Out, clkOutTy, Identifier clkOut Nothing)
+          | (clkSuffix, clkOut, clkOutTy) <- zip3 ["", "2", "3"] secondaryClkOuts secondaryClkOutTys
+          ] ++
+          [ (instPort "CLKFB", Out, primaryClkOutTy, Identifier primaryClkOut Nothing)
+          , (instPort "PHASESEL0", In, Bit, Literal Nothing (BitLit L))
+          , (instPort "PHASESEL1", In, Bit, Literal Nothing (BitLit L))
+          , (instPort "PHASEDIR", In, Bit, Literal Nothing (BitLit H))
+          , (instPort "PHASESTEP", In, Bit, Literal Nothing (BitLit H))
+          , (instPort "PHASELOADREG", In, Bit, Literal Nothing (BitLit H))
+          , (instPort "PLLWAKESYNC", In, Bit, Literal Nothing (BitLit L))
+          , (instPort "ENCLKOP", In, Bit, Literal Nothing (BitLit L))
+          , (instPort "LOCK", Out, Bit, Identifier locked Nothing)
+          ]
+        )
+      , Assignment result
+        ( DataCon resTy (DC (resTy, 0)) $
+          [ Identifier primaryClkOut Nothing ] ++
+          map (\clkOut -> Identifier clkOut Nothing) secondaryClkOuts ++
+          [ Identifier locked Nothing ]
+        )
+      ]
     ]
   where
     stringParam :: TextS.Text -> String -> (Expr, HWType, Expr)
@@ -142,7 +177,10 @@ vcoMax = 800
 vcoOpt :: Float
 vcoOpt = (vcoMin + vcoMax) / 2
 
--- Copied from Project Trellis's ecppll
+-- Copied from Project Trellis's ecppll.  Doesn't always agree with ecppll
+-- because of some floating point error reason. e.g. for a 25MHz input and 50MHz
+-- output, ecppll gets a cphase of 4, rounded down from a floating point value
+-- very close to 5, whereas this actually gets 5.
 calculatePllParams :: Float -> Float -> Maybe PllParams
 calculatePllParams inputf outputf = minOrNothing $ do
   inputDiv <- [1..128]
@@ -170,3 +208,27 @@ calculatePllParams inputf outputf = minOrNothing $ do
 
     pllBadness :: PllParams -> (Float, Float)
     pllBadness params = (abs $ fOut params - outputf, abs $ fVco params - vcoOpt)
+
+data SecondaryPllParams = SecondaryPllParams
+  { divisor :: !Int
+  , cPhase :: !Int
+  , fPhase :: !Int
+  , freq :: !Float
+  }
+
+generateSecondaryOutput :: Float -> Float -> Float -> Int -> SecondaryPllParams
+generateSecondaryOutput fvco frequency phase primaryCPhase =
+  let div' = fvco / frequency
+      freq = fvco / div'
+
+      nsShift = 1 / (freq * 1e6) * phase / 360.0
+      phaseCount = nsShift * (fvco * 1e6)
+      cPhase = floor phaseCount
+      fPhase = floor ((phaseCount - fromIntegral cPhase) * 8)
+
+  in SecondaryPllParams
+    { divisor = floor div'
+    , cPhase = cPhase + primaryCPhase
+    , fPhase = fPhase
+    , freq = freq
+    }

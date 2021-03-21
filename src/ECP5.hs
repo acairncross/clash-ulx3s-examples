@@ -9,13 +9,12 @@ import qualified Data.String.Interpolate as I
 import Data.String.Interpolate.Util (unindent)
 
 ecp5pll
-  :: forall domOut domIn name
-   . (KnownDomain domIn, KnownDomain domOut)
+  :: forall t domIn name. (Clocks t, KnownDomain domIn, ClocksCxt t)
   => SSymbol name
   -> Clock domIn
   -> Reset domIn
-  -> (Clock domOut, Signal domOut Bool)
-ecp5pll !_ = knownDomain @domIn `seq` knownDomain @domOut `seq` clocks
+  -> t
+ecp5pll !_ = knownDomain @domIn `seq` clocks
 {-# NOINLINE ecp5pll #-}
 
 -- Note: Untested for VHDL
