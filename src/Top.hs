@@ -88,13 +88,13 @@ makeTopEntity 'stackMachine
 dvi
   :: "clk_25mhz" ::: Clock Dom25
   -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
-dvi clk =
-  let (clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clk resetGen
+dvi clkIn =
+  let (clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
 
-      (de, hsync, vsync, color) = withClockResetEnable clk resetGen enableGen vgaPattern
+      (de, hsync, vsync, color) = withClockResetEnable clkIn resetGen enableGen vgaPattern
 
       sdrOut :: Signal Dom125 (Vec 4 (BitVector 2))
-      sdrOut = tmdsTx clk clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+      sdrOut = tmdsTx clkIn clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
 
       sdrOutUnbundled :: Vec 4 (Signal Dom125 Bit, Signal Dom125 Bit)
       sdrOutUnbundled = map (unbundle . fmap bitCoerce) $ unbundle sdrOut
