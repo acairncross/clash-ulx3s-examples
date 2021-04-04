@@ -25,7 +25,7 @@ $(BUILDDIR)/%_out.config: $(BUILDDIR)/%.json
 		--package CABGA381 
 
 $(BUILDDIR)/%.json: verilog | $(BUILDDIR)
-	yosys -p "synth_ecp5 -json $@" verilog/Top/$*/$*.v
+	yosys -p "synth_ecp5 -json $@" verilog/Top.$*/$*.v
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)

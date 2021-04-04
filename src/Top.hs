@@ -3,29 +3,29 @@
 module Top where
 
 import Clash.Prelude
-import Clash.Annotations.TH (makeTopEntityWithName)
+import Clash.Annotations.TH (makeTopEntity)
 import Control.Monad.State
 import Data.Function ((&))
 
 import Clocks
 import DVI
 import ECP5
-import RAM
+import qualified RAM
 import StackMachine
 import UART
 import Utils
 
-counter
+counter'
   :: forall n dom
    . HiddenClockResetEnable dom
   => KnownNat n
   => Signal dom (BitVector n)
-counter = register 0 ((1+) <$> counter)
+counter' = register 0 ((1+) <$> counter')
 
-slowCounter
+slowCounter'
   :: HiddenClockResetEnable dom
   => Signal dom (BitVector 8)
-slowCounter = mealyState (\() -> slowCounterT) 0 (pure ())
+slowCounter' = mealyState (\() -> slowCounterT) 0 (pure ())
   where
     slowCounterT :: State (BitVector 32) (BitVector 8)
     slowCounterT = do
@@ -34,36 +34,36 @@ slowCounter = mealyState (\() -> slowCounterT) 0 (pure ())
       put internalCounter'
       return $ truncateB (internalCounter' `shiftR` 22)
 
-topCounter
+counter
   :: "clk_25mhz" ::: Clock Dom25
   -> "led" ::: Signal Dom25 (BitVector 8)
-topCounter clk =
+counter clk =
   withClockResetEnable clk resetGen enableGen $
-    fmap (truncateB . (`shiftR` 22)) (counter @32)
-    -- slowCounter
+    fmap (truncateB . (`shiftR` 22)) (counter' @32)
+    -- slowCounter'
 
-makeTopEntityWithName 'topCounter "counter"
+makeTopEntity 'counter
 
-topRam
+ram
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit
   -> "ftdi_rxd" ::: Signal Dom25 Bit
-topRam clk input =
+ram clk input =
   withClockResetEnable clk resetGen enableGen $
     input
     & override 8 high
     & uartRx (SNat @(HzToPeriod 115200))
-    & ramRx
-    & ram
+    & RAM.ramRx
+    & RAM.ram
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
-makeTopEntityWithName 'topRam "ram"
+makeTopEntity 'ram
 
-topStackMachine
+stackMachine
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit
   -> "ftdi_rxd" ::: Signal Dom25 Bit
-topStackMachine clk input =
+stackMachine clk input =
   withClockResetEnable clk resetGen enableGen $
     input
     & override 8 high
@@ -72,12 +72,12 @@ topStackMachine clk input =
     & processor
     & fst . uartTx (SNat @(HzToPeriod 115200))
 
-makeTopEntityWithName 'topStackMachine "stackMachine"
+makeTopEntity 'stackMachine
 
-topDvi
+dvi
   :: "clk_25mhz" ::: Clock Dom25
   -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
-topDvi clk =
+dvi clk =
   let (clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clk resetGen
 
       (de, hsync, vsync, color) = withClockResetEnable clk resetGen enableGen vgaPattern
@@ -96,4 +96,4 @@ topDvi clk =
 
   in ddrOut
 
-makeTopEntityWithName 'topDvi "dvi"
+makeTopEntity 'dvi
