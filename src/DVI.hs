@@ -53,11 +53,11 @@ vgaPattern = unbundle $ mealyState vgaPatternT (0, 0) (pure ())
   where
     vgaPatternT :: () -> State (BitVector 10, BitVector 10) (Bool, Bit, Bit, BitVector 8)
     vgaPatternT () = get >>= \(y, x) -> do
-      put $ if x+1 == 800 then (if y+1 == 525 then 0 else y+1, 0) else (y, x+1)
+      put $ if x+1 == 800 then (if y+1 == 500 then 0 else y+1, 0) else (y, x+1)
       return
         ( x < 640 && y < 480
-        , if x >= 656 && x < 752 then 1 else 0
-        , if y >= 490 && y < 492 then 1 else 0
+        , if x >= 664 && x < 720 then 1 else 0
+        , if y >= 483 && y < 487 then 1 else 0
         , if (x .&. 0x10 > 0 && not (y .&. 0x10 > 0)) || (not (x .&. 0x10 > 0) && y .&. 0x10 > 0) then 255 else 0
         )
 
