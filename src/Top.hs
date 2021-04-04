@@ -59,6 +59,17 @@ ram clk input =
 
 makeTopEntity 'ram
 
+pll
+  :: "clk_25mhz" ::: Clock Dom25
+  -> ("clk_60mhz" ::: Clock Dom60, "clk_300mhz" ::: Clock Dom300)
+pll clk =
+  let (clkPixel, clkShift, _) =
+        ecp5pll @_ @Dom25 (SSymbol @"tmds_pll") clk resetGen
+          :: (Clock Dom60, Clock Dom300, Signal Dom60 Bool)
+  in (clkPixel, clkShift)
+
+makeTopEntity 'pll
+
 stackMachine
   :: "clk_25mhz" ::: Clock Dom25
   -> "ftdi_txd" ::: Signal Dom25 Bit

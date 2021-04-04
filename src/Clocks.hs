@@ -12,6 +12,9 @@ createDomain vXilinxSystem{vName="Dom25", vPeriod=hzToPeriod 25_000_000}
 createDomain vXilinxSystem{vName="Dom125", vPeriod=hzToPeriod 125_000_000}
 createDomain vXilinxSystem{vName="Dom250", vPeriod=hzToPeriod 250_000_000}
 
+createDomain vXilinxSystem{vName="Dom60", vPeriod=hzToPeriod 60_000_000}
+createDomain vXilinxSystem{vName="Dom300", vPeriod=hzToPeriod 300_000_000}
+
 -- Divide 1s by rate - type level version of hzToPeriod
 type HzToPeriod (rate :: Nat) = Seconds 1 `Div` rate
 
