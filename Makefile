@@ -32,4 +32,5 @@ $(BUILDDIR):
 
 .PHONY: verilog
 verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs src/DVI.hs
-	cabal run --write-ghc-environment-files=always clash -- --verilog Top
+	cabal run --write-ghc-environment-files=always clash -- \
+	  --verilog Top -fclash-clear -fclash-no-cache
