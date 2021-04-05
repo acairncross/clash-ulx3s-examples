@@ -44,42 +44,42 @@ tmdsPiso bs gs rs =
       put (b', g', r', c')
       return $ bitCoerce (lsbs d2 c, lsbs d2 r, lsbs d2 g, lsbs d2 b)
 
--- | A 640x480 test pattern
+-- | A 1920x1080 test pattern
 vgaPattern
   :: HiddenClockResetEnable dom
   => (Signal dom Bool, Signal dom Bit, Signal dom Bit, Signal dom (BitVector 8))
   -- ^ Data enable, HSync, VSync, Brightness
 vgaPattern = unbundle $ mealyState vgaPatternT (0, 0) (pure ())
   where
-    vgaPatternT :: () -> State (BitVector 10, BitVector 10) (Bool, Bit, Bit, BitVector 8)
+    vgaPatternT :: () -> State (BitVector 12, BitVector 12) (Bool, Bit, Bit, BitVector 8)
     vgaPatternT () = get >>= \(y, x) -> do
-      put $ if x+1 == 800 then (if y+1 == 500 then 0 else y+1, 0) else (y, x+1)
+      put $ if x+1 == 1950 then (if y+1 == 1096 then 0 else y+1, 0) else (y, x+1)
       return
-        ( x < 640 && y < 480
-        , if x >= 664 && x < 720 then 1 else 0
-        , if y >= 483 && y < 487 then 1 else 0
-        , if (x .&. 0x10 > 0 && not (y .&. 0x10 > 0)) || (not (x .&. 0x10 > 0) && y .&. 0x10 > 0) then 255 else 0
+        ( x < 1920 && y < 1080
+        , if x >= 1930 && x < 1940 then 1 else 0
+        , if y >= 1085 && y < 1091 then 1 else 0
+        , if (x .&. 0x4 > 0 && not (y .&. 0x4 > 0)) || (not (x .&. 0x4 > 0) && y .&. 0x4 > 0) then 255 else 0
         )
 
 -- | A TMDS transmitter
 tmdsTx
-  :: Clock Dom25
+  :: Clock Dom60
   -- ^ Pixel clock
-  -> Clock Dom125
+  -> Clock Dom300
   -- ^ Bit clock
-  -> Signal Dom25 Bool
+  -> Signal Dom60 Bool
   -- ^ Data enable
-  -> Signal Dom125 Bool
+  -> Signal Dom300 Bool
   -- ^ Bit clock locked
-  -> Signal Dom25 (BitVector 8)
+  -> Signal Dom60 (BitVector 8)
   -- ^ Blue
-  -> Signal Dom25 (BitVector 8)
+  -> Signal Dom60 (BitVector 8)
   -- ^ Green
-  -> Signal Dom25 (BitVector 8)
+  -> Signal Dom60 (BitVector 8)
   -- ^ Red
-  -> Signal Dom25 (BitVector 2)
+  -> Signal Dom60 (BitVector 2)
   -- ^ Ctrl
-  -> Signal Dom125 (Vec 4 (BitVector 2))
+  -> Signal Dom300 (Vec 4 (BitVector 2))
   -- ^ Blue, Green, Red, Clock
 tmdsTx clkPixel clkBit de locked blueIn greenIn redIn ctrl =
   let blueOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $

@@ -87,22 +87,22 @@ makeTopEntity 'stackMachine
 
 dvi
   :: "clk_25mhz" ::: Clock Dom25
-  -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
+  -> "gpdi_dp" ::: Signal Dom600 (BitVector 4)
 dvi clkIn =
-  let (clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
+  let (clkPixel, clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
 
-      (de, hsync, vsync, color) = withClockResetEnable clkIn resetGen enableGen vgaPattern
+      (de, hsync, vsync, color) = withClockResetEnable clkPixel resetGen enableGen vgaPattern
 
-      sdrOut :: Signal Dom125 (Vec 4 (BitVector 2))
-      sdrOut = tmdsTx clkIn clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+      sdrOut :: Signal Dom300 (Vec 4 (BitVector 2))
+      sdrOut = tmdsTx clkPixel clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
 
-      sdrOutUnbundled :: Vec 4 (Signal Dom125 Bit, Signal Dom125 Bit)
+      sdrOutUnbundled :: Vec 4 (Signal Dom300 Bit, Signal Dom300 Bit)
       sdrOutUnbundled = map (unbundle . fmap bitCoerce) $ unbundle sdrOut
 
-      ddrOutUnbundled :: Vec 4 (Signal Dom250 Bit)
+      ddrOutUnbundled :: Vec 4 (Signal Dom600 Bit)
       ddrOutUnbundled = map (\(x, y) -> oddrx1 y x clkShift resetGen) sdrOutUnbundled
 
-      ddrOut :: Signal Dom250 (BitVector 4)
+      ddrOut :: Signal Dom600 (BitVector 4)
       ddrOut = fmap v2bv $ bundle ddrOutUnbundled
 
   in ddrOut
