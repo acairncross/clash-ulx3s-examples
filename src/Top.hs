@@ -89,7 +89,7 @@ dvi
   :: "clk_25mhz" ::: Clock Dom25
   -> "gpdi_dp" ::: Signal Dom600 (BitVector 4)
 dvi clkIn =
-  let (clkPixel, clkShift, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
+  let (clkShift, clkPixel, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
 
       (de, hsync, vsync, color) = withClockResetEnable clkPixel resetGen enableGen vgaPattern
 
