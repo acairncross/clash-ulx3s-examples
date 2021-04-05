@@ -189,9 +189,9 @@ calculatePllParams inputf outputf = minOrNothing $ do
 
   feedbackDiv <- [1..80]
   outputDiv <- [1..128]
-  let fvco = fpfd * fromIntegral feedbackDiv * fromIntegral outputDiv
+  let fout = fpfd * fromIntegral feedbackDiv
+  let fvco = fout * fromIntegral outputDiv
   guard $ fvco >= vcoMin && fvco <= vcoMax
-  let fout = fvco / fromIntegral outputDiv
   return PllParams
     { refClkDiv = inputDiv
     , feedbackDiv = feedbackDiv
