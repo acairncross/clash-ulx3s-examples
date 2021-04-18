@@ -34,3 +34,7 @@ $(BUILDDIR):
 verilog: clash-ulx3s-examples.cabal src/RAM.hs src/StackMachine.hs src/Top.hs src/UART.hs src/Utils.hs src/DVI.hs
 	cabal run --write-ghc-environment-files=always clash -- \
 	  --verilog Top -fclash-clear -fclash-no-cache
+
+.PHONY: update
+update:
+	cabal run -v0 scripts/Img2Mem.hs -- res/tile.png > res/tile.mem

@@ -11,7 +11,7 @@ synopsis:      Clash ULX3S examples
 category:      Hardware
 
 data-files:
-  prims/*
+  res/bin/*.mem
 
 common common-options
   default-extensions:
