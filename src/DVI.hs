@@ -7,6 +7,7 @@ import Clash.Explicit.Prelude (dualFlipFlopSynchronizer)
 import Clash.Prelude
 
 import Clocks
+import RAM.TH
 import Utils
 
 xnor :: Bits a => a -> a -> a
@@ -60,6 +61,24 @@ vgaPattern = unbundle $ mealyState vgaPatternT (0, 0) (pure ())
         , if y >= 1085 && y < 1091 then 1 else 0
         , if (x .&. 0x4 > 0 && not (y .&. 0x4 > 0)) || (not (x .&. 0x4 > 0) && y .&. 0x4 > 0) then 255 else 0
         )
+
+tileRom
+  :: forall dom
+   . HiddenClockResetEnable dom
+  => Signal dom (BitVector 12)
+  -- ^ x
+  -> Signal dom (BitVector 12)
+  -- ^ y
+  -> (Signal dom (BitVector 8), Signal dom (BitVector 8), Signal dom (BitVector 8))
+  -- ^ Red, Green, Blue (delayed by 1 cycle)
+tileRom x y =
+  let dataOut :: Signal dom (BitVector 24)
+      dataOut =
+        romFile
+          (SNat @12) -- 4Kb
+          $(tilePathTH)
+          (liftA2 (\x' y' -> bitCoerce $ (shiftL (y' .&. 0xf) 4) .|. (x' .&. 0xf)) x y)
+  in unbundle (fmap bitCoerce dataOut :: Signal dom (BitVector 8, BitVector 8, BitVector 8))
 
 -- | A TMDS transmitter
 tmdsTx
