@@ -6,7 +6,6 @@ import Control.Monad.State
 import Clash.Explicit.Prelude (dualFlipFlopSynchronizer)
 import Clash.Prelude
 
-import Clocks
 import RAM.TH
 import Utils
 
@@ -21,13 +20,16 @@ popCountBV bv =
 -- | Given a TMDS encoded pixel, output the channels in serial, including a
 -- pixel clock.
 tmdsPiso
-  :: forall dom
+  :: forall dom dataRate
    . HiddenClockResetEnable dom
-  => Signal dom (BitVector 10)
+  => 1 <= dataRate
+  => dataRate <= 2
+  => SNat dataRate
   -> Signal dom (BitVector 10)
   -> Signal dom (BitVector 10)
-  -> Signal dom (Vec 4 (BitVector 2))
-tmdsPiso bs gs rs =
+  -> Signal dom (BitVector 10)
+  -> Signal dom (Vec 4 (BitVector dataRate))
+tmdsPiso dataRate@SNat bs gs rs =
   mealyState tmdsPisoT (0, 0, 0, 0b11111_00000) (bundle (bs, gs, rs))
   where
     lsbs :: SNat a -> BitVector (a+b) -> BitVector a
@@ -35,15 +37,15 @@ tmdsPiso bs gs rs =
 
     tmdsPisoT
       :: (BitVector 10, BitVector 10, BitVector 10)
-      -> State (BitVector 10, BitVector 10, BitVector 10, BitVector 10) (Vec 4 (BitVector 2))
+      -> State (BitVector 10, BitVector 10, BitVector 10, BitVector 10) (Vec 4 (BitVector dataRate))
     tmdsPisoT (bIn, gIn, rIn) = get >>= \(b, g, r, c) -> do
-      let c' = c `rotateR` 2
+      let c' = c `rotateR` snatToNum dataRate
       let c'mid = v2bv $ take d2 $ drop d4 $ bv2v c'
-      let b' = if c'mid == 0b10 then bIn else b `rotateR` 2
-      let g' = if c'mid == 0b10 then gIn else g `rotateR` 2
-      let r' = if c'mid == 0b10 then rIn else r `rotateR` 2
+      let b' = if c'mid == 0b10 then bIn else b `rotateR` snatToNum dataRate
+      let g' = if c'mid == 0b10 then gIn else g `rotateR` snatToNum dataRate
+      let r' = if c'mid == 0b10 then rIn else r `rotateR` snatToNum dataRate
       put (b', g', r', c')
-      return $ bitCoerce (lsbs d2 c, lsbs d2 r, lsbs d2 g, lsbs d2 b)
+      return $ bitCoerce ((leToPlus @dataRate @10 (lsbs dataRate c, lsbs dataRate r, lsbs dataRate g, lsbs dataRate b)) :: (BitVector dataRate, BitVector dataRate, BitVector dataRate, BitVector dataRate))
 
 -- | A 1920x1080 test pattern
 vgaPattern
@@ -82,25 +84,32 @@ tileRom x y =
 
 -- | A TMDS transmitter
 tmdsTx
-  :: Clock Dom60
+  :: forall domPixel domBit dataRate
+   . KnownDomain domPixel
+  => KnownDomain domBit
+  => DomainPeriod domPixel ~ ((Div 10 dataRate) * DomainPeriod domBit)
+  => 1 <= dataRate
+  => dataRate <= 2
+  => SNat dataRate
+  -> Clock domPixel
   -- ^ Pixel clock
-  -> Clock Dom300
+  -> Clock domBit
   -- ^ Bit clock
-  -> Signal Dom60 Bool
+  -> Signal domPixel Bool
   -- ^ Data enable
-  -> Signal Dom300 Bool
+  -> Signal domBit Bool
   -- ^ Bit clock locked
-  -> Signal Dom60 (BitVector 8)
+  -> Signal domPixel (BitVector 8)
   -- ^ Blue
-  -> Signal Dom60 (BitVector 8)
+  -> Signal domPixel (BitVector 8)
   -- ^ Green
-  -> Signal Dom60 (BitVector 8)
+  -> Signal domPixel (BitVector 8)
   -- ^ Red
-  -> Signal Dom60 (BitVector 2)
+  -> Signal domPixel (BitVector 2)
   -- ^ Ctrl
-  -> Signal Dom300 (Vec 4 (BitVector 2))
+  -> Signal domBit (Vec 4 (BitVector dataRate))
   -- ^ Blue, Green, Red, Clock
-tmdsTx clkPixel clkBit de locked blueIn greenIn redIn ctrl =
+tmdsTx dataRate clkPixel clkBit de locked blueIn greenIn redIn ctrl =
   let blueOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
         tmdsChannel clkPixel de ctrl blueIn
 
@@ -110,7 +119,7 @@ tmdsTx clkPixel clkBit de locked blueIn greenIn redIn ctrl =
       redOut = dualFlipFlopSynchronizer clkPixel clkBit resetGen (toEnable locked) 0 $
         tmdsChannel clkPixel de (pure 0b00) redIn
 
-  in withClockResetEnable clkBit resetGen enableGen $ tmdsPiso blueOut greenOut redOut
+  in withClockResetEnable clkBit resetGen enableGen $ tmdsPiso dataRate blueOut greenOut redOut
 
 -- | A single TMDS channel, or encoder. A TMDS transmitter comprises 3 of these.
 tmdsChannel

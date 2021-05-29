@@ -90,11 +90,12 @@ dvi
   -> "gpdi_dp" ::: Signal Dom600 (BitVector 4)
 dvi clkIn =
   let (clkShift, clkPixel, locked) = ecp5pll (SSymbol @"tmds_pll") clkIn resetGen
+        :: (Clock Dom300, Clock Dom60, Signal Dom300 Bool)
 
       (de, hsync, vsync, color) = withClockResetEnable clkPixel resetGen enableGen vgaPattern
 
       sdrOut :: Signal Dom300 (Vec 4 (BitVector 2))
-      sdrOut = tmdsTx clkPixel clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
+      sdrOut = tmdsTx d2 clkPixel clkShift de locked (pure 0) (pure 0) color (fmap bitCoerce . bundle $ (vsync, hsync))
 
       sdrOutUnbundled :: Vec 4 (Signal Dom300 Bit, Signal Dom300 Bit)
       sdrOutUnbundled = map (unbundle . fmap bitCoerce) $ unbundle sdrOut
