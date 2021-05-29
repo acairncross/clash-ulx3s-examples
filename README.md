@@ -32,3 +32,8 @@ stack-machine-repl`.
 
 Uses a DVI transmitter to display test pattern on a monitor connected via the
 GPDI port.
+
+### `snake`
+
+A game of Snake using the directional buttons as input and GPDI output for the
+display. Run an SDL based simulation with `cabal run snake-sim`.
