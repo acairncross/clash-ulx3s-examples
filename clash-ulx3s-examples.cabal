@@ -82,6 +82,7 @@ library
                     DVI
                     RAM
                     RAM.TH
+                    Snake
                     StackMachine
                     Top
                     UART
@@ -91,11 +92,15 @@ library
   default-language: Haskell2010
 
   build-depends:
+    bifunctors,
     clash-lib,
     interpolate,
     filepath,
+    lens,
     mtl,
     reducers,
+    retroclash-lib,
+    retroclash-sim,
     template-haskell,
     text,
 
@@ -132,3 +137,12 @@ executable ram-repl
     haskeline,
     serialport,
     bytestring,
+
+executable snake-sim
+  main-is:          bin/SnakeSim.hs
+  default-language: Haskell2010
+  build-depends:
+    base <5,
+    clash-ulx3s-examples,
+    mtl,
+    retroclash-sim,

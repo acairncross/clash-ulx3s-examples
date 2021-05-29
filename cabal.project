@@ -6,3 +6,13 @@ package clash-prelude
   -- Clash, and triggers Template Haskell bugs on Windows. Hence, we disable
   -- it by default. This will be the default for Clash >=1.4.
   flags: -large-tuples
+
+source-repository-package
+  type: git
+  location: https://github.com/acairncross/retroclash-lib.git
+  tag: 3ad16affcfd52aa4602d86151db9ccb243d8629b
+
+source-repository-package
+  type: git
+  location: https://github.com/acairncross/retroclash-sim.git
+  tag: e105232fa54147fa5870b1c8d7ba6cb3c9a07253

@@ -1,4 +1,5 @@
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Top where
 
@@ -6,11 +7,15 @@ import Clash.Prelude
 import Clash.Annotations.TH (makeTopEntity)
 import Control.Monad.State
 import Data.Function ((&))
+import Data.Maybe (isJust)
+import RetroClash.VGA
+import RetroClash.Video (scale, center)
 
 import Clocks
 import DVI
 import ECP5
 import qualified RAM
+import qualified Snake
 import StackMachine
 import UART
 import Utils
@@ -109,3 +114,45 @@ dvi clkIn =
   in ddrOut
 
 makeTopEntity 'dvi
+
+snake
+  :: "clk_25mhz" ::: Clock Dom25
+  -> "btn" ::: Signal Dom25 (BitVector 7)
+  -> "gpdi_dp" ::: Signal Dom250 (BitVector 4)
+snake clk btns =
+  let boardVgaOut@VGAOut{..} = withClockResetEnable clk resetGen enableGen (board btns)
+      (clkShift, clkPixel, locked) = ecp5pll (SSymbol @"tmds_pll") clk resetGen :: (Clock Dom250, Clock Dom25, Signal Dom250 Bool)
+      dviOut =
+        tmdsTx d1 clkPixel clkShift (vgaDE vgaSync)
+          locked
+          (bitCoerce <$> vgaB)
+          (bitCoerce <$> vgaG)
+          (bitCoerce <$> vgaR)
+          -- complement the sync signals because they're active low
+          (bitCoerce <$> bundle (complement <$> vgaVSync vgaSync, complement <$> vgaHSync vgaSync))
+  in bitCoerce <$> dviOut
+  where
+    -- board :: Signal Dom25 (BitVector 7) -> VGAOut Dom25 8 8 8
+    board btns = vgaOut vgaSync rgb
+      where
+        dirBtns :: Signal Dom25 (BitVector 4)
+        dirBtns = slice d6 d3 <$> btns
+
+        up, down, left, right :: Signal Dom25 Bool
+        (up, down, left, right) = unbundle $ fmap (bitCoerce . map (== high) . reverse . bv2v) dirBtns
+
+        VGADriver{..} = vgaDriver vga640x480at60
+        frameEnd = isFalling False (isJust <$> vgaY)
+
+        inputs = Snake.MkInputs <$> up <*> down <*> left <*> right
+
+        st = regEn Snake.initState frameEnd $ Snake.updateState <$> inputs <*> st
+
+        rgb :: Signal Dom25 (Unsigned 8, Unsigned 8, Unsigned 8)
+        rgb = fmap (maybe (0, 0, 0) bitCoerce) $
+            liftA2 <$> (Snake.draw <$> st) <*> x <*> y
+          where
+            (x, _) = scale (SNat @20) . center $ vgaX
+            (y, _) = scale (SNat @20) . center $ vgaY
+
+makeTopEntity 'snake

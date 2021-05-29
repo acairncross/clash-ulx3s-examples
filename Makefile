@@ -1,6 +1,6 @@
 BUILDDIR ?= build
 
-TOPMODS := stackMachine counter ram dvi
+TOPMODS := stackMachine counter ram dvi snake
 SYNTHCFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.json))
 ROUTECFGS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=_out.config))
 BITSTREAMS := $(addprefix $(BUILDDIR)/,$(TOPMODS:=.bit))
