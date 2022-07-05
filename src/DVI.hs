@@ -79,7 +79,7 @@ tileRom x y =
         romFile
           (SNat @12) -- 4Kb
           $(tilePathTH)
-          (liftA2 (\x' y' -> bitCoerce $ (shiftL (y' .&. 0xf) 4) .|. (x' .&. 0xf)) x y)
+          (liftA2 (\x' y' -> (shiftL (y' .&. 0xf) 4) .|. (x' .&. 0xf)) x y)
   in unbundle (fmap bitCoerce dataOut :: Signal dom (BitVector 8, BitVector 8, BitVector 8))
 
 -- | A TMDS transmitter
