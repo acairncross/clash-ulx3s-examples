@@ -1,6 +1,6 @@
 module RAM (RamOp(..), defaultRamOp, ram, ramRx) where
 
-import Clash.Prelude hiding (blockRam)
+import Clash.Prelude hiding (blockRam, RamOp)
 import Clash.Explicit.Prelude (blockRam)
 
 data RamOp = RamOp

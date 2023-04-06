@@ -20,7 +20,7 @@ import Clash.Netlist.BlackBox.Util (exprToString)
 import qualified Clash.Netlist.Id as Id
 import Clash.Netlist.Types
 import Clash.Netlist.Util (instPort, stripVoid)
-import Data.Semigroup.Monad (Mon (getMon))
+import Data.Monoid (Ap (getAp))
 import Data.Text.Prettyprint.Doc.Extra (Doc)
 import qualified Data.Text as TextS
 
@@ -81,7 +81,7 @@ ecp5pllTemplate bbCtx = do
   secondaryClkOuts <- forM (zip ([1..3] :: [Int]) secondaryPllParams) $ \(i, _) ->
     Id.makeBasic ("clkOut" <> TextS.pack (show i))
 
-  getMon $ blockDecl blockName $ concat
+  getAp $ blockDecl blockName $ concat
     [ [ NetDecl Nothing locked Bit
       , NetDecl Nothing primaryClkOut primaryClkOutTy
       ]
