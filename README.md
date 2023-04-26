@@ -28,7 +28,7 @@ use a specific version of the Haskell `sdl2` library, e.g. the version of
 `libsdl2-dev` is too old for the most recent Haskell `sdl2` library, so run:
 
 ```
-$ cabal configure --constraint="sdl2 <2.5.5.0 && >2.5.0.0"
+$ cabal configure --constraint="sdl2 <2.5.5.0 && >=2.5.0.0"
 ```
 
 before any of the build commands.
